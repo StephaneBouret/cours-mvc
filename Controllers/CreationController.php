@@ -14,6 +14,7 @@ final class CreationController extends Controller
         $creations = $model->findAll();
 
         $this->render('creation/index', [
+            'pageTitle' => 'Mon portfolio - liste de mes créations',
             'creations' => $creations
         ]);
     }

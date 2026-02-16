@@ -1,6 +1,3 @@
-<?php
-$pageTitle = 'Mon portfolio - liste de mes créations';
-?>
 <h2>Liste de mes créations</h2>
 <?php if (empty($creations)): ?>
     <div class="alert alert-info">Aucune création pour le moment.</div>

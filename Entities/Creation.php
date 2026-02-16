@@ -13,7 +13,7 @@ final class Creation extends Entity
     private string $title;
     private string $description;
     private DateTimeImmutable $createdAt;
-    private string $picture;
+    private ?string $picture = null;
 
     public function getIdCreation(): int
     {
@@ -55,13 +55,15 @@ final class Creation extends Entity
         $this->createdAt = $createdAt;
     }
 
-    public function getPicture(): string
+    public function getPicture(): ?string
     {
         return $this->picture;
     }
 
-    public function setPicture(string $picture): void
+    public function setPicture(?string $picture): void
     {
-        $this->picture = $picture;
+        $this->picture = $picture !== null && $picture !== ''
+            ? trim($picture)
+            : null;
     }
 }

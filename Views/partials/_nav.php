@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">Mon portfolio</a>
+        <a class="navbar-brand" href="/?controller=home&action=index">Mon portfolio</a>
         <button
             class="navbar-toggler"
             type="button"
@@ -14,10 +14,10 @@
         <div class="collapse navbar-collapse" id="navbarNavDropdown">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="#">Accueil</a>
+                    <a class="nav-link active" aria-current="page" href="/?controller=home&action=index">Accueil</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Mes créations</a>
+                    <a class="nav-link" href="/?controller=creation&action=index">Mes créations</a>
                 </li>
             </ul>
         </div>
