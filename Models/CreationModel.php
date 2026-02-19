@@ -37,4 +37,26 @@ final class CreationModel extends Model
 
         return $row ? Creation::createAndHydrate($row) : null;
     }
+
+    public function insert(Creation $creation): Creation 
+    {
+        $sql = 'INSERT INTO creation (title, description, created_at, picture) 
+                VALUES (:title, :description, :created_at, :picture)';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'title'       => $creation->getTitle(),
+            'description' => $creation->getDescription(),
+            'created_at'  => $creation->getCreatedAt()->format('Y-m-d H:i:s'),
+            'picture'     => $creation->getPicture(),
+        ]);
+
+        $id = (int) $this->pdo->lastInsertId();
+        $created = $this->find($id);
+        if ($created === null) {
+            throw new \RuntimeException('Insertion réussie mais relecture impossible.');
+        }
+
+        return $created;
+    }
 }

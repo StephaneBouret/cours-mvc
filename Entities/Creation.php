@@ -15,6 +15,11 @@ final class Creation extends Entity
     private DateTimeImmutable $createdAt;
     private ?string $picture = null;
 
+    public function __construct()
+    {
+        $this->createdAt = new DateTimeImmutable();
+    }
+
     public function getIdCreation(): int
     {
         return $this->idCreation;
@@ -50,8 +55,11 @@ final class Creation extends Entity
         return $this->createdAt;
     }
 
-    public function setCreatedAt(DateTimeImmutable $createdAt): void
+    public function setCreatedAt(DateTimeImmutable|string $createdAt): void
     {
+        if (is_string($createdAt)) {
+            $createdAt = new DateTimeImmutable($createdAt);
+        }
         $this->createdAt = $createdAt;
     }
 
