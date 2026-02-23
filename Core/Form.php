@@ -6,269 +6,204 @@ namespace App\Core;
 
 final class Form
 {
-    private string $formElements = '';
-    private array $data = [];           // valeurs pour "re-remplir" (souvent $_POST)
-    private ?string $csrfTokenId = null; // id du token CSRF pour ce formulaire
+    private string $formCode = '';
 
-    public function __construct(array $data = [])
+    /**
+     * Données utilisées pour re-remplir le formulaire (v2+).
+     * Typiquement: new Form($_POST)
+     */
+    public function __construct(private array $data = []) {}
+
+    public function startForm(string $action = '', string $method = 'POST', array $attributes = []): self
     {
-        $this->data = $data;
-    }
-
-    public function getFormElements(): string
-    {
-        return $this->formElements;
-    }
-
-    public function __toString(): string
-    {
-        return $this->formElements;
-    }
-
-    // ----------------------------
-    // 1) ATTRIBUTS HTML
-    // ----------------------------
-    private function addAttributes(array $attributes): string
-    {
-        $html = '';
-
-        foreach ($attributes as $key => $value) {
-            // Attributs booléens HTML (required, disabled, checked, multiple, etc.)
-            if ($value === true) {
-                $html .= ' ' . $key;
-                continue;
-            }
-
-            // Permet de retirer un attribut en passant null
-            if ($value === null || $value === false) {
-                continue;
-            }
-
-            $escapedKey = htmlspecialchars((string)$key, ENT_QUOTES);
-            $escapedVal = htmlspecialchars((string)$value, ENT_QUOTES);
-            $html .= " {$escapedKey}=\"{$escapedVal}\"";
+        // ✅ action par défaut : URL courante (évite '#', plus stable)
+        if ($action === '') {
+            $action = $_SERVER['REQUEST_URI'] ?? '';
         }
 
-        return $html;
-    }
+        $this->formCode .= "\n<form action=\"" . self::escape($action) . "\" method=\"" . self::escape($method) . "\"";
 
-    private function esc(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES);
-    }
-
-    // ----------------------------
-    // 2) GESTION DES VALEURS (re-remplissage)
-    // ----------------------------
-    private function getValue(string $name, mixed $default = ''): string
-    {
-        // Exemple: $data = $_POST, on récupère la valeur du champ si elle existe
-        $value = $this->data[$name] ?? $default;
-
-        if (is_array($value)) {
-            // utile pour multi-select / checkbox groups
-            return '';
+        foreach ($attributes as $attribute => $value) {
+            $this->formCode .= ' ' . self::escape((string) $attribute) . '="' . self::escape((string) $value) . '"';
         }
 
-        return (string) $value;
-    }
-
-    private function isChecked(string $name, string $expectedValue = '1'): bool
-    {
-        $value = $this->data[$name] ?? null;
-
-        if (is_array($value)) {
-            return in_array($expectedValue, $value, true);
-        }
-
-        return (string)$value === $expectedValue;
-    }
-
-    // ----------------------------
-    // 3) CSRF "simple"
-    // ----------------------------
-    public function enableCsrf(string $tokenId = 'form'): self
-    {
-        $this->csrfTokenId = $tokenId;
-        return $this;
-    }
-
-    private function ensureSessionStarted(): void
-    {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            throw new \RuntimeException('Session non démarrée. Ajoute session_start() dans public/index.php.');
-        }
-    }
-
-    private function generateCsrfToken(string $tokenId): string
-    {
-        $this->ensureSessionStarted();
-
-        $token = bin2hex(random_bytes(32));
-        $_SESSION['_csrf'][$tokenId] = $token;
-
-        return $token;
-    }
-
-    public static function isCsrfTokenValid(string $tokenId, ?string $submittedToken): bool
-    {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            return false;
-        }
-
-        $stored = $_SESSION['_csrf'][$tokenId] ?? null;
-        if (!is_string($stored) || !is_string($submittedToken)) {
-            return false;
-        }
-
-        // comparaison sûre contre timing attacks
-        return hash_equals($stored, $submittedToken);
-    }
-
-    private function addCsrfHiddenInput(): void
-    {
-        if ($this->csrfTokenId === null) {
-            return;
-        }
-
-        $token = $this->generateCsrfToken($this->csrfTokenId);
-        $this->formElements .= '<input type="hidden" name="_csrf" value="' . $this->esc($token) . '">';
-    }
-
-    // ----------------------------
-    // 4) FORM TAG
-    // ----------------------------
-    public function startForm(string $action, string $method = 'POST', array $attributes = []): self
-    {
-        $actionEsc = $this->esc($action);
-        $methodUp = strtoupper($method);
-        $methodEsc = $this->esc($methodUp);
-
-        $this->formElements .= "<form action=\"{$actionEsc}\" method=\"{$methodEsc}\"";
-        $this->formElements .= $this->addAttributes($attributes) . '>';
-
-        // Si CSRF activé, on injecte le hidden dès le début du form
-        $this->addCsrfHiddenInput();
-
+        $this->formCode .= '>';
         return $this;
     }
 
     public function endForm(): self
     {
-        $this->formElements .= '</form>';
+        $this->formCode .= "\n</form>";
         return $this;
     }
 
-    // ----------------------------
-    // 5) CHAMPS
-    // ----------------------------
     public function addLabel(string $for, string $text, array $attributes = []): self
     {
-        $forEsc = $this->esc($for);
-        $this->formElements .= "<label for=\"{$forEsc}\"";
-        $this->formElements .= $this->addAttributes($attributes) . '>';
-        $this->formElements .= $this->esc($text) . '</label>';
+        $this->formCode .= "\n<label for=\"" . self::escape($for) . "\"";
+        foreach ($attributes as $attribute => $value) {
+            $this->formCode .= ' ' . self::escape((string) $attribute) . '="' . self::escape((string) $value) . '"';
+        }
+        $this->formCode .= '>' . self::escape($text) . '</label>';
         return $this;
     }
 
     public function addInput(string $type, string $name, array $attributes = []): self
     {
-        $typeEsc = $this->esc($type);
-        $nameEsc = $this->esc($name);
-
-        // Remplissage auto : on met value=... pour les types compatibles
-        $typesWithValue = ['text', 'email', 'date', 'number', 'search', 'tel', 'url', 'hidden'];
-        if (in_array(strtolower($type), $typesWithValue, true) && !array_key_exists('value', $attributes)) {
-            $attributes['value'] = $this->getValue($name);
+        // ✅ si pas d'id fourni, on met id=name (utile avec label for=)
+        if (!isset($attributes['id']) && $type !== 'hidden') {
+            $attributes['id'] = $name;
         }
-
-        // Checkbox/radio : checked si la valeur postée correspond
-        if (in_array(strtolower($type), ['checkbox', 'radio'], true)) {
-            $value = (string)($attributes['value'] ?? '1');
-            if ($this->isChecked($name, $value)) {
-                $attributes['checked'] = true;
+        // v2+: re-remplissage (sauf file, submit, password)
+        if (!isset($attributes['value']) && $this->shouldPrefill($type)) {
+            $value = $this->data[$name] ?? null;
+            if (is_scalar($value)) {
+                $attributes['value'] = (string) $value;
             }
         }
-
-        $this->formElements .= "<input type=\"{$typeEsc}\" name=\"{$nameEsc}\"";
-        $this->formElements .= $this->addAttributes($attributes) . '>';
+        $this->formCode .= "\n<input type=\"" . self::escape($type) . "\" name=\"" . self::escape($name) . '"';
+        foreach ($attributes as $attribute => $value) {
+            $this->formCode .= ' ' . self::escape((string) $attribute) . '="' . self::escape((string) $value) . '"';
+        }
+        $this->formCode .= '>';
         return $this;
     }
 
-    public function addTextarea(string $name, string $text = '', array $attributes = []): self
+    public function addTextarea(string $name, string $value = '', array $attributes = []): self
     {
-        $nameEsc = $this->esc($name);
-
-        // si POST, on écrase le texte par la valeur postée
-        $value = $this->getValue($name, $text);
-
-        $this->formElements .= "<textarea name=\"{$nameEsc}\"";
-        $this->formElements .= $this->addAttributes($attributes) . '>';
-        $this->formElements .= $this->esc($value) . '</textarea>';
+        // ✅ id par défaut
+        if (!isset($attributes['id'])) {
+            $attributes['id'] = $name;
+        }
+        $this->formCode .= "\n<textarea name=\"" . self::escape($name) . '"';
+        foreach ($attributes as $attribute => $val) {
+            $this->formCode .= ' ' . self::escape((string) $attribute) . '="' . self::escape((string) $val) . '"';
+        }
+        $this->formCode .= '>';
+        // v2+: re-remplissage si $_POST fourni
+        $content = $this->data[$name] ?? $value;
+        $this->formCode .= self::escape(is_scalar($content) ? (string) $content : '');
+        $this->formCode .= '</textarea>';
         return $this;
     }
 
-    /**
-     * @param array $options Format simple : ['1' => 'Option A', '2' => 'Option B']
-     * ou format avancé :
-     * [
-     *   ['value' => '1', 'label' => 'Option A', 'attributes' => ['data-x' => 'y']],
-     * ]
-     */
     public function addSelect(string $name, array $options, array $attributes = []): self
     {
-        $nameEsc = $this->esc($name);
-        $current = $this->getValue($name);
-
-        $this->formElements .= "<select name=\"{$nameEsc}\"";
-        $this->formElements .= $this->addAttributes($attributes) . '>';
-
-        foreach ($options as $key => $opt) {
-            // Format avancé
-            if (is_array($opt) && isset($opt['value'], $opt['label'])) {
-                $value = (string)$opt['value'];
-                $label = (string)$opt['label'];
-                $optAttr = $opt['attributes'] ?? [];
-            } else {
-                // Format simple
-                $value = (string)$key;
-                $label = (string)$opt;
-                $optAttr = [];
-            }
-
-            if ($current !== '' && $current === $value) {
-                $optAttr['selected'] = true;
-            }
-
-            $this->formElements .= '<option value="' . $this->esc($value) . '"';
-            $this->formElements .= $this->addAttributes($optAttr) . '>';
-            $this->formElements .= $this->esc($label) . '</option>';
+        // ✅ id par défaut
+        if (!isset($attributes['id'])) {
+            $attributes['id'] = $name;
         }
-
-        $this->formElements .= '</select>';
+        $this->formCode .= "\n<select name=\"" . self::escape($name) . '"';
+        foreach ($attributes as $attribute => $val) {
+            $this->formCode .= ' ' . self::escape((string) $attribute) . '="' . self::escape((string) $val) . '"';
+        }
+        $this->formCode .= '>';
+        $selected = $this->data[$name] ?? null;
+        foreach ($options as $value => $label) {
+            $this->formCode .= "\n <option value=\"" . self::escape((string) $value) . '"';
+            if ($selected !== null && (string) $selected === (string) $value) {
+                $this->formCode .= ' selected';
+            }
+            $this->formCode .= '>' . self::escape((string) $label) . '</option>';
+        }
+        $this->formCode .= "\n</select>";
         return $this;
     }
 
-    // ----------------------------
-    // 6) VALIDATION SIMPLE
-    // ----------------------------
+    public function getFormElements(): string
+    {
+        return $this->formCode;
+    }
+
+    /* =======================
+    * Validation helpers
+    * ======================= */
+    /**
+     * Vérifie que les champs existent et ne sont pas vides.
+     */
     public static function validatePost(array $post, array $fields): bool
     {
         foreach ($fields as $field) {
-            if (!isset($post[$field]) || trim((string)$post[$field]) === '') {
+            if (!isset($post[$field])) {
+                return false;
+            }
+            if (!is_string($post[$field])) {
+                return false;
+            }
+            if (trim($post[$field]) === '') {
                 return false;
             }
         }
         return true;
     }
 
-    public static function validateFiles(array $files, array $fields): bool
-    {
+    /**
+     * Validation fichiers (upload + image).
+     * - Si UPLOAD_ERR_NO_FILE => OK (champ optionnel), on continue.
+     * - Vérifie aussi taille max et MIME réel.
+     */
+    public static function validateFiles(
+        array $files,
+        array $fields,
+        int $maxBytes = 2_000_000,
+        array $allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    ): bool {
         foreach ($fields as $field) {
-            if (!isset($files[$field]) || ($files[$field]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            if (!isset($files[$field])) {
+                return false;
+            }
+
+            $f = $files[$field];
+
+            if (!isset($f['error'], $f['tmp_name'], $f['size'])) {
+                return false;
+            }
+
+            // ✅ optionnel : pas de fichier envoyé => on passe au champ suivant
+            if ((int) $f['error'] === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+
+            if ((int) $f['error'] !== UPLOAD_ERR_OK) {
+                return false;
+            }
+
+            $tmp = (string) $f['tmp_name'];
+            if ($tmp === '' || !is_file($tmp)) {
+                return false;
+            }
+
+            $size = (int) $f['size'];
+            if ($size <= 0 || $size > $maxBytes) {
+                return false;
+            }
+
+            // Vérifie que c'est une image (dimensions + type basique)
+            if (getimagesize($tmp) === false) {
+                return false;
+            }
+
+            // MIME réel (plus fiable que l'extension)
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($tmp);
+            if (!in_array($mime, $allowedMime, true)) {
                 return false;
             }
         }
+
         return true;
+    }
+
+    /* =======================
+    * Internal helpers
+    * ======================= */
+    private function shouldPrefill(string $type): bool
+    {
+        $type = strtolower($type);
+        return !in_array($type, ['file', 'password', 'submit'], true);
+    }
+
+    private static function escape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     }
 }
