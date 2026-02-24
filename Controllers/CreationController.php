@@ -11,10 +11,17 @@ use App\Models\CreationModel;
 
 final class CreationController extends Controller
 {
+    private CreationModel $model;
+
+    public function __construct()
+    {
+        $this->model = new CreationModel();
+    }
+
     public function index(): void
     {
-        $model = new CreationModel();
-        $creations = $model->findAll();
+        // $model = new CreationModel();
+        $creations = $this->model->findAll();
 
         $this->render('creation/index', [
             'pageTitle' => 'Mon portfolio - liste de mes créations',
@@ -24,8 +31,7 @@ final class CreationController extends Controller
 
     public function show(int $id): void
     {
-        $model = new CreationModel();
-        $creation = $model->find($id);
+        $creation = $this->model->find($id);
 
         if ($creation === null) {
             http_response_code(404);
@@ -85,8 +91,8 @@ final class CreationController extends Controller
                     }
 
                     // Délégation au Model
-                    $model = new CreationModel();
-                    $model->insert($creation);
+                    // $model = new CreationModel();
+                    $this->model->insert($creation);
                     header('Location: index.php?controller=creation&action=index');
                     // 'Location: index.php?controller=creation&action=show&id='
                     // . $created->getIdCreation()
@@ -124,8 +130,8 @@ final class CreationController extends Controller
     {
         $error = null;
 
-        $model = new CreationModel();
-        $creation = $model->find($id);
+        // $model = new CreationModel();
+        $creation = $this->model->find($id);
 
         if (!$creation) {
             http_response_code(404);
@@ -165,7 +171,7 @@ final class CreationController extends Controller
                 }
 
                 if ($error === null) {
-                    $model->update($creation);
+                    $this->model->update($creation);
                     header('Location: index.php?controller=creation&action=show&id='
                         . $id);
                     exit;
