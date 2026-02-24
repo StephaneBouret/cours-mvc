@@ -31,7 +31,7 @@ final class CreationModel extends Model
                 FROM creation WHERE id_creation = :id';
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([':id' => $id]);
+        $stmt->execute(['id' => $id]);
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 

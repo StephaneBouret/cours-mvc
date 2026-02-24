@@ -22,6 +22,23 @@ final class CreationController extends Controller
         ]);
     }
 
+    public function show(int $id): void
+    {
+        $model = new CreationModel();
+        $creation = $model->find($id);
+
+        if ($creation === null) {
+            http_response_code(404);
+            echo '404 - Création introuvable';
+            return;
+        }
+
+        $this->render('creation/show', [
+            'title' => 'Détail création',
+            'creation' => $creation,
+        ]);
+    }
+
     public function add(): void
     {
         $error = null;
