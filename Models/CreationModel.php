@@ -38,7 +38,7 @@ final class CreationModel extends Model
         return $row ? Creation::createAndHydrate($row) : null;
     }
 
-    public function insert(Creation $creation): Creation 
+    public function insert(Creation $creation): Creation
     {
         $sql = 'INSERT INTO creation (title, description, created_at, picture) 
                 VALUES (:title, :description, :created_at, :picture)';
@@ -58,5 +58,24 @@ final class CreationModel extends Model
         }
 
         return $created;
+    }
+
+    public function update(Creation $creation): Creation
+    {
+        $sql = 'UPDATE creation 
+                SET title = :title, 
+                    description = :description, 
+                    picture = :picture 
+                WHERE id_creation = :id';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'title' => $creation->getTitle(),
+            'description' => $creation->getDescription(),
+            'picture' => $creation->getPicture(),
+            'id' => $creation->getIdCreation(),
+        ]);
+
+        return $this->find($creation->getIdCreation()) ?? throw new \RuntimeException('Mise à jour OK mais relecture impossible.');
     }
 }

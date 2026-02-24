@@ -119,4 +119,88 @@ final class CreationController extends Controller
             'error' => $error,
         ]);
     }
+
+    public function edit(int $id): void
+    {
+        $error = null;
+
+        $model = new CreationModel();
+        $creation = $model->find($id);
+
+        if (!$creation) {
+            http_response_code(404);
+            $this->render('errors/404');
+            return;
+        }
+
+        $csrfId = 'creation_edit_' . $id;
+
+        // 1) POST
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $token = $_POST['_token'] ?? null;
+
+            if (!Csrf::isValid($csrfId, is_string($token) ? $token : null)) {
+                $error = 'CSRF invalide.';
+            } elseif (!Form::validatePost($_POST, ['title', 'description'])) {
+                $error = 'Tous les champs sont obligatoires';
+            } elseif (!empty($_FILES['picture']['name']) && !Form::validateFiles($_FILES, ['picture'])) {
+                $error = 'Image invalide';
+            } else {
+                $creation->setTitle(trim($_POST['title']));
+                $creation->setDescription(trim($_POST['description']));
+
+                if (!empty($_FILES['picture']['name'])) {
+                    $filename = uniqid() . '_' . basename($_FILES['picture']['name']);
+
+                    $ok = move_uploaded_file(
+                        $_FILES['picture']['tmp_name'],
+                        dirname(__DIR__) . '/public/uploads/' . $filename
+                    );
+
+                    if (!$ok) {
+                        $error = "Erreur lors de l'upload de l'image";
+                    } else {
+                        $creation->setPicture($filename);
+                    }
+                }
+
+                if ($error === null) {
+                    $model->update($creation);
+                    header('Location: index.php?controller=creation&action=show&id='
+                        . $id);
+                    exit;
+                }
+            }
+        }
+
+        // 2) Token d'affichage
+        $csrfToken = Csrf::token($csrfId);
+
+        // 3) Préremplissage : POST (si erreur) sinon entité
+        $data = $_POST ?: [
+            'title' => $creation->getTitle(),
+            'description' => $creation->getDescription(),
+        ];
+
+        $form = new Form($data);
+        $form
+            ->startForm('index.php?controller=creation&action=edit&id=' . $id, 'POST', [
+                'enctype' => 'multipart/form-data',
+            ])
+            ->addInput('hidden', '_token', ['value' => $csrfToken])
+            ->addLabel('title', 'Titre')
+            ->addInput('text', 'title', ['required' => true, 'class' => 'form-control'])
+            ->addLabel('description', 'Description')
+            ->addTextarea('description', '', ['rows' => 5, 'required' => true, 'class' => 'form-control'])
+            ->addLabel('picture', 'Image (optionnelle)')
+            ->addInput('file', 'picture', ['class' => 'form-control'])
+            ->addInput('submit', 'submit', ['value' => 'Modifier', 'class' => 'mt-4 btn btn-primary'])
+            ->endForm();
+
+        $this->render('creation/edit', [
+            'creation' => $creation,
+            'form' => $form->getFormElements(),
+            'error' => $error,
+        ]);
+    }
 }
