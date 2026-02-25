@@ -78,4 +78,14 @@ final class CreationModel extends Model
 
         return $this->find($creation->getIdCreation()) ?? throw new \RuntimeException('Mise à jour OK mais relecture impossible.');
     }
+
+    public function delete(int $id): bool 
+    {
+        $sql = 'DELETE FROM creation WHERE id_creation = :id';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute(['id' => $id]);
+
+        return $stmt->rowCount() > 0;
+    }
 }

@@ -209,4 +209,31 @@ final class CreationController extends Controller
             'error' => $error,
         ]);
     }
+
+    public function delete(int $id): void
+    {
+        // 1) Méthode
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo 'Méthode non autorisée';
+            return;
+        }
+
+        // 2) CSRF
+        $csrfId = 'creation_delete_' . $id;
+        $token = $_POST['_token'] ?? null;
+
+        if (!Csrf::isValid($csrfId, is_string($token) ? $token : null)) {
+            http_response_code(403);
+            echo 'CSRF invalide';
+            return;
+        }
+
+        // 3) Suppression
+        $this->model->delete($id);
+
+        // 4) PRG
+        header('Location: index.php?controller=creation&action=index');
+        exit();
+    }
 }
